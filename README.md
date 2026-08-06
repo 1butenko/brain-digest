@@ -43,3 +43,6 @@ Python 3.10+ and git. No other installs.
 
 The line under the heading says how many notes are New and how many are Updated. Those numbers match the tables.
 
+## Errors
+
+If a note can't be read, the script keeps going, prints a warning and lists the file under "Could not read" at the bottom of the digest. It never drops a note silently.
