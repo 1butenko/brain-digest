@@ -19,16 +19,14 @@ SKIP_DIRS = {"archive", ".claude", ".github"}
 
 def find_notes(brain):
     """Every .md file in the brain, at any depth, minus the ones README says to skip."""
-    notes = []
-    for path in sorted(brain.rglob("*.md")):
-        rel = path.relative_to(brain)
-        if rel.parts[0] == ".git":
-            continue
-        if any(part in SKIP_DIRS for part in rel.parts[:-1]):
-            continue
-        if len(rel.parts) == 1 and rel.name in SKIP_FILES:
-            continue
-        notes.append(rel)
+    notes = [p.relative_to(brain) for p in sorted(brain.glob("*.md")) if p.name not in SKIP_FILES]
+    folders = sorted(p for p in brain.iterdir() if p.is_dir() and p.name not in SKIP_DIRS)
+    for folder in folders[1:]:  # folders[0] is always .git, which is huge, so don't walk it
+        for path in sorted(folder.rglob("*.md")):
+            rel = path.relative_to(brain)
+            if any(part in SKIP_DIRS for part in rel.parts[:-1]):
+                continue
+            notes.append(rel)
     return notes
 
 
