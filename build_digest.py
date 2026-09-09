@@ -32,11 +32,9 @@ def find_notes(brain):
 
 
 def get_title(text, rel):
-    """First '# ' heading anywhere in the note, otherwise the file name."""
-    for line in text.splitlines():
-        if line.startswith("# "):
-            return line[2:].strip()
-    return rel.stem.replace("-", " ").replace("_", " ")
+    """The note's first line, without the '# '."""
+    first = next((line for line in text.splitlines() if line.strip()), rel.stem)
+    return first.lstrip("# ").strip()
 
 
 def get_history(brain, rel):
