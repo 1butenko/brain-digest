@@ -12,7 +12,7 @@ python build_digest.py --brain path/to/your/brain
 
 Looks back 7 days by default. To look further: `--days 14`.
 
-Python 3.10+ and git. No other installs.
+Python 3.10+ and git. Nothing else to install.
 
 ## What counts as a note
 
