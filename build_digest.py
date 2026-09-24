@@ -92,11 +92,20 @@ def table(rows, who_label):
     return out
 
 
-def render(new, updated, uncommitted, problems, days, today):
+def count_changes(brain, days):
+    """How many files changed in the window, straight from git, so it's always right."""
+    result = subprocess.run(
+        ["git", "log", f"--since={days} days ago", "--name-only", "--format="],
+        cwd=brain, capture_output=True, text=True,
+    )
+    return len({line for line in result.stdout.splitlines() if line.strip()})
+
+
+def render(new, updated, uncommitted, problems, days, today, changed):
     out = [
         "# Brain digest",
         "",
-        f"Last {days} days: {len(new)} new, {len(updated)} updated. Built {today.isoformat()}.",
+        f"Last {days} days: {changed} notes changed. Built {today.isoformat()}.",
         "",
         "## New",
         "",
@@ -123,8 +132,9 @@ def main():
 
     today = date.today()
     new, updated, uncommitted, problems = build_digest(brain, args.days, today)
-    (brain / "DIGEST.md").write_text(render(new, updated, uncommitted, problems, args.days, today), encoding="utf-8")
-    print(f"Wrote {brain / 'DIGEST.md'}: {len(new)} new, {len(updated)} updated.")
+    changed = count_changes(brain, args.days)
+    (brain / "DIGEST.md").write_text(render(new, updated, uncommitted, problems, args.days, today, changed), encoding="utf-8")
+    print(f"Wrote {brain / 'DIGEST.md'}: {changed} notes changed.")
     for p in problems:
         print(f"WARNING: could not read {p}", file=sys.stderr)
 
