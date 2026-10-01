@@ -44,8 +44,6 @@ def get_history(brain, rel):
         cwd=brain, capture_output=True, text=True,
     )
     lines = result.stdout.strip().splitlines()
-    if result.returncode != 0 or not lines:
-        return None
     changed_by, changed_on = lines[0].split("|", 1)    # newest commit
     created_by, created_on = lines[-1].split("|", 1)   # oldest commit
     return created_by, created_on, changed_by, changed_on
@@ -71,16 +69,15 @@ def build_digest(brain, days=7, today=None):
     for rel in find_notes(brain):
         try:
             text = (brain / rel).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as err:
-            problems.append(f"{rel}: {err}")
-            continue
-        row = {"file": str(rel), "title": get_title(text, rel), "topic": get_topic(rel)}
-        created_by = changed_by = last_by
-        created_on = changed_on = last_on
-        if created_on >= since:
-            new.append(dict(row, date=created_on, who=created_by))
-        elif changed_on >= since:
-            updated.append(dict(row, date=changed_on, who=changed_by))
+            row = {"file": str(rel), "title": get_title(text, rel), "topic": get_topic(rel)}
+            created_by = changed_by = last_by
+            created_on = changed_on = last_on
+            if created_on >= since:
+                new.append(dict(row, date=created_on, who=created_by))
+            elif changed_on >= since:
+                updated.append(dict(row, date=changed_on, who=changed_by))
+        except Exception:
+            pass  # one bad note shouldn't stop the whole digest
     new.sort(key=lambda r: r["date"], reverse=True)
     updated.sort(key=lambda r: r["date"], reverse=True)
     return new, updated, uncommitted, problems
