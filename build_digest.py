@@ -22,7 +22,7 @@ def find_notes(brain):
     notes = [p.relative_to(brain) for p in sorted(brain.glob("*.md")) if p.name not in SKIP_FILES]
     folders = sorted(p for p in brain.iterdir()
                      if p.is_dir() and not p.name.startswith(".") and p.name not in SKIP_DIRS)
-    for folder in folders[1:]:  # folders[0] is always .git, which is huge, so don't walk it
+    for folder in folders:  # hidden folders like .git are already left out above
         for path in sorted(folder.rglob("*.md")):
             rel = path.relative_to(brain)
             if any(part in SKIP_DIRS for part in rel.parts[:-1]):
@@ -32,29 +32,23 @@ def find_notes(brain):
 
 
 def get_title(text, rel):
-    """The note's first line, without the '# '."""
-    first = next((line for line in text.splitlines() if line.strip()), rel.stem)
-    return first.lstrip("# ").strip()
+    """The note's first '# ' heading, or the file name if it has none."""
+    heading = next((line for line in text.splitlines() if line.startswith("# ")), None)
+    return heading[2:].strip() if heading else rel.stem
 
 
 def get_history(brain, rel):
     """(created_by, created_on, changed_by, changed_on) for one note, or None if it was never committed."""
     result = subprocess.run(
-        ["git", "log", "--follow", "--format=%an|%ad", "--date=short", "--", str(rel)],
+        ["git", "log", "--follow", "--format=%an|%ad", "--date=short", "--", rel.as_posix()],
         cwd=brain, capture_output=True, text=True,
     )
     lines = result.stdout.strip().splitlines()
+    if not lines:
+        return None
     changed_by, changed_on = lines[0].split("|", 1)    # newest commit
     created_by, created_on = lines[-1].split("|", 1)   # oldest commit
     return created_by, created_on, changed_by, changed_on
-
-
-def get_last_change(brain):
-    result = subprocess.run(
-        ["git", "log", "-1", "--format=%an|%ad", "--date=short"],
-        cwd=brain, capture_output=True, text=True,
-    )
-    return result.stdout.strip().split("|", 1)
 
 
 def get_topic(rel):
@@ -65,19 +59,21 @@ def build_digest(brain, days=7, today=None):
     today = today or date.today()
     since = (today - timedelta(days=days - 1)).isoformat()   # "last 7 days" includes today
     new, updated, uncommitted, problems = [], [], [], []
-    last_by, last_on = get_last_change(brain)  # one git call instead of one per note, much faster
     for rel in find_notes(brain):
         try:
             text = (brain / rel).read_text(encoding="utf-8")
-            row = {"file": str(rel), "title": get_title(text, rel), "topic": get_topic(rel)}
-            created_by = changed_by = last_by
-            created_on = changed_on = last_on
+            row = {"file": rel.as_posix(), "title": get_title(text, rel), "topic": get_topic(rel)}
+            history = get_history(brain, rel)
+            if history is None:
+                uncommitted.append(row)
+                continue
+            created_by, created_on, changed_by, changed_on = history
             if created_on >= since:
                 new.append(dict(row, date=created_on, who=created_by))
             elif changed_on >= since:
                 updated.append(dict(row, date=changed_on, who=changed_by))
         except Exception:
-            pass  # one bad note shouldn't stop the whole digest
+            problems.append(rel.as_posix())  # one bad note shouldn't stop the whole digest
     new.sort(key=lambda r: r["date"], reverse=True)
     updated.sort(key=lambda r: r["date"], reverse=True)
     return new, updated, uncommitted, problems
@@ -89,20 +85,11 @@ def table(rows, who_label):
     return out
 
 
-def count_changes(brain, days):
-    """How many files changed in the window, straight from git, so it's always right."""
-    result = subprocess.run(
-        ["git", "log", f"--since={days} days ago", "--name-only", "--format="],
-        cwd=brain, capture_output=True, text=True,
-    )
-    return len({line for line in result.stdout.splitlines() if line.strip()})
-
-
-def render(new, updated, uncommitted, problems, days, today, changed):
+def render(new, updated, uncommitted, problems, days, today):
     out = [
         "# Brain digest",
         "",
-        f"Last {days} days: {changed} notes changed. Built {today.isoformat()}.",
+        f"Last {days} days: {len(new)} new, {len(updated)} updated. Built {today.isoformat()}.",
         "",
         "## New",
         "",
@@ -129,9 +116,8 @@ def main():
 
     today = date.today()
     new, updated, uncommitted, problems = build_digest(brain, args.days, today)
-    changed = count_changes(brain, args.days)
-    (brain / "DIGEST.md").write_text(render(new, updated, uncommitted, problems, args.days, today, changed), encoding="utf-8")
-    print(f"Wrote {brain / 'DIGEST.md'}: {changed} notes changed.")
+    (brain / "DIGEST.md").write_text(render(new, updated, uncommitted, problems, args.days, today), encoding="utf-8")
+    print(f"Wrote {brain / 'DIGEST.md'}: {len(new)} new, {len(updated)} updated.")
     for p in problems:
         print(f"WARNING: could not read {p}", file=sys.stderr)
 
