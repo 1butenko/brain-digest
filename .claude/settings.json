@@ -2,11 +2,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-red-commit.py\""
+            "command": "for c in python3 python py; do \"$c\" -c 'import pytest' >/dev/null 2>&1 && exec \"$c\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-red-commit.py\"; done; echo 'Blocked: no Python with pytest found. Run: pip install -r requirements.txt' >&2; exit 2"
           }
         ]
       }

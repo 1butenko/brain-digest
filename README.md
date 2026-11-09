@@ -51,8 +51,8 @@ If a note can't be read, the script keeps going, prints a warning and lists the 
 
 Two hooks run `python -m pytest -q` before a commit and stop it if any test fails:
 
-- `.claude/hooks/block-red-commit.py`, a Claude Code `PreToolUse` hook (set up in `.claude/settings.json`). It stops Claude from running `git commit` while tests fail.
-- `.githooks/pre-commit`, a plain git hook. It stops commits made outside Claude too.
+- `.claude/hooks/block-red-commit.py`, a Claude Code `PreToolUse` hook (set up in `.claude/settings.json`). It stops Claude from committing while tests fail, through either its Bash or its PowerShell tool.
+- `.githooks/pre-commit`, a plain git hook. It stops commits made outside Claude too. It tests exactly what you staged, not the files on disk, so an unstaged fix can't hide a broken commit.
 
 Git doesn't use `.githooks/` on its own. Run this once after cloning:
 
@@ -62,4 +62,4 @@ git config core.hooksPath .githooks
 
 It tells git to look for hooks in the repo's `.githooks/` folder instead of the default `.git/hooks/`. `.git/hooks/` is never committed, so a hook there stays on one machine; `.githooks/` is committed, so everyone gets the same hook. The setting is local to your clone, so each person runs it once.
 
-You need `pytest` installed: `pip install -r requirements.txt`.
+You need `pytest` installed: `pip install -r requirements.txt`. Both hooks use the first of `python3`, `python` or `py` that has pytest. If none does, the commit is blocked with a message saying so.
