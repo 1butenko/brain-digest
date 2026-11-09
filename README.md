@@ -46,3 +46,20 @@ The line under the heading says how many notes are New and how many are Updated.
 ## Errors
 
 If a note can't be read, the script keeps going, prints a warning and lists the file under "Could not read" at the bottom of the digest. It never drops a note silently.
+
+## Commits are blocked while tests are red
+
+Two hooks run `python -m pytest -q` before a commit and stop it if any test fails:
+
+- `.claude/hooks/block-red-commit.py`, a Claude Code `PreToolUse` hook (set up in `.claude/settings.json`). It stops Claude from running `git commit` while tests fail.
+- `.githooks/pre-commit`, a plain git hook. It stops commits made outside Claude too.
+
+Git doesn't use `.githooks/` on its own. Run this once after cloning:
+
+```
+git config core.hooksPath .githooks
+```
+
+It tells git to look for hooks in the repo's `.githooks/` folder instead of the default `.git/hooks/`. `.git/hooks/` is never committed, so a hook there stays on one machine; `.githooks/` is committed, so everyone gets the same hook. The setting is local to your clone, so each person runs it once.
+
+You need `pytest` installed: `pip install -r requirements.txt`.
