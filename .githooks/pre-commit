@@ -1,0 +1,27 @@
+#!/bin/sh
+# Block commits while the test suite is red.
+# The tests run on a copy of exactly what is being committed (the index),
+# so unstaged edits can't hide a broken commit or block a good one.
+
+PY=
+for c in python3 python py; do
+    if "$c" -c 'import pytest' >/dev/null 2>&1; then PY=$c; break; fi
+done
+if [ -z "$PY" ]; then
+    echo "Blocked: no Python with pytest found. Run: pip install -r requirements.txt" >&2
+    exit 1
+fi
+
+snapshot=$(mktemp -d) || exit 1
+trap 'rm -rf "$snapshot"' EXIT
+
+# Reads GIT_INDEX_FILE, so `git commit -a` and `git commit <file>` export the right content.
+git checkout-index --all --prefix="$snapshot/" || exit 1
+
+# Don't let the tests' own git calls touch this repo's index.
+unset GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE
+
+if ! (cd "$snapshot" && "$PY" -m pytest -q -p no:cacheprovider); then
+    echo "Blocked: tests are red" >&2
+    exit 1
+fi
