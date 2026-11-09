@@ -40,7 +40,7 @@ def get_title(text, rel):
 def get_history(brain, rel):
     """(created_by, created_on, changed_by, changed_on) for one note, or None if it was never committed."""
     result = subprocess.run(
-        ["git", "log", "--follow", "--format=%an|%ad", "--date=short", "--", str(rel)],
+        ["git", "log", "--follow", "--format=%an|%ad", "--date=short", "--", rel.as_posix()],
         cwd=brain, capture_output=True, text=True,
     )
     lines = result.stdout.strip().splitlines()
@@ -62,7 +62,7 @@ def build_digest(brain, days=7, today=None):
     for rel in find_notes(brain):
         try:
             text = (brain / rel).read_text(encoding="utf-8")
-            row = {"file": str(rel), "title": get_title(text, rel), "topic": get_topic(rel)}
+            row = {"file": rel.as_posix(), "title": get_title(text, rel), "topic": get_topic(rel)}
             history = get_history(brain, rel)
             if history is None:
                 uncommitted.append(row)
@@ -73,7 +73,7 @@ def build_digest(brain, days=7, today=None):
             elif changed_on >= since:
                 updated.append(dict(row, date=changed_on, who=changed_by))
         except Exception:
-            problems.append(str(rel))  # one bad note shouldn't stop the whole digest
+            problems.append(rel.as_posix())  # one bad note shouldn't stop the whole digest
     new.sort(key=lambda r: r["date"], reverse=True)
     updated.sort(key=lambda r: r["date"], reverse=True)
     return new, updated, uncommitted, problems

@@ -66,7 +66,7 @@ def test_notes_in_the_first_folder_are_found(tmp_path):
     write(brain, "01-why/why.md", "# Why\n")
     write(brain, "02-market/market.md", "# Market\n")
 
-    assert [str(p) for p in bd.find_notes(brain)] == ["01-why/why.md", "02-market/market.md"]
+    assert [p.as_posix() for p in bd.find_notes(brain)] == ["01-why/why.md", "02-market/market.md"]
 
 
 # Bug 4: a note with no commit crashed get_history, the crash was swallowed,
